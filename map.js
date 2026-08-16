@@ -12,9 +12,11 @@ addProtocol("pmtiles", protocol.tile);
 const SEOUL_CITY_HALL = [126.978, 37.5665];
 
 // ISO 3166-1 alpha-3 codes, matched against the `iso_a3` /
-// `country_iso_a3` properties in data/country-borders.geojson and
-// data/state-borders.geojson (both filtered from Natural Earth's public
-// domain admin-0 / admin-1 datasets down to just these countries).
+// `country_iso_a3` properties in data/country-borders.geojson (national
+// outlines, OSM-derived so they follow the same coastline the basemap
+// draws) and data/state-borders.geojson (province divisions only — the
+// outer ring is stripped since the national outline already draws it).
+// See README for how the two files are regenerated.
 const COUNTRY_COLORS = {
   UKR: "#4c72b0",
   LBN: "#dd8452",

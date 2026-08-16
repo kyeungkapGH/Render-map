@@ -22,7 +22,8 @@ python3 -m http.server 8000
 - `vendor/maplibre-gl/` — [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) (지도 렌더링, WebGL 기반)
 - `vendor/pmtiles/` — [PMTiles](https://docs.protomaps.com/pmtiles/) (단일 파일 벡터 타일 아카이브를 브라우저에서 직접 읽는 라이브러리)
 - `vendor/basemaps/` — [@protomaps/basemaps](https://github.com/protomaps/basemaps) (Protomaps 베이스맵 스타일 레이어 생성기)
-- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란의 국경선/주(州) 경계선. [Natural Earth](https://www.naturalearthdata.com/) 1:10m Admin-0/Admin-1 공개 데이터(퍼블릭 도메인)에서 이 5개국만 추출·정밀도를 낮춰 만들었습니다.
+- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란의 국경선/주(州) 경계선.
+- `scripts/build-borders.py` — 위 두 GeoJSON을 다시 만드는 스크립트.
 
 라이브러리는 CDN 대신 `npm install`로 받아서 이 저장소 안에 직접 vendoring
 했습니다. 버전을 올리려면 `npm install maplibre-gl@latest pmtiles@latest
@@ -73,23 +74,36 @@ CORS 문제 자체가 사라집니다:
 `data/state-borders.geojson`(주/도 경계, 얇은 점선)을 국가별로 다른 색
 (`COUNTRY_COLORS`)으로 얹습니다.
 
-이 오버레이는 Natural Earth 데이터라 베이스맵(OSM 기반)과 좌표가 완전히
-같지는 않습니다. Protomaps 베이스맵의 `boundaries` 소스레이어를 살펴보면
-경계선마다 `kind`/`kind_detail`(행정구역 등급)만 있고 어느 나라 소속인지
-식별하는 필드가 없어서, 베이스맵 데이터 자체를 국가별로 필터링해 대신
-쓸 수는 없었습니다. 그래서 절충안으로 베이스맵의 기본 국경선 레이어
-(`boundaries_country`, `boundaries`)는 스타일에서 아예 빼고, 이 GeoJSON
-오버레이만 경계선으로 그리도록 했습니다 — 서로 다른 두 선이 살짝 어긋난
-채 겹쳐 보이는 문제는 없어지지만, 이 5개국 외 지역엔 국경선이 안 그려지는
-트레이드오프가 있습니다.
+베이스맵이 원래 그리는 국경선 레이어(`boundaries_country`, `boundaries`)는
+스타일에서 빼두었습니다. Protomaps의 `boundaries` 소스레이어에는 경계선마다
+행정구역 등급(`kind`/`kind_detail`)만 있고 어느 나라 소속인지 식별하는
+필드가 없어서 이 5개국만 골라 강조할 수가 없기 때문입니다. 그 대신 이
+GeoJSON 오버레이가 유일한 경계선이 되고, 5개국 외 지역엔 국경선이 그려지지
+않는 트레이드오프가 있습니다.
 
-다른 나라를 추가/변경하려면:
+### 왜 데이터 출처가 두 개인가
 
-1. [Natural Earth Admin-0](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson)
-   / [Admin-1](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson)
-   GeoJSON을 받아서 원하는 나라의 `ADM0_A3`(국가) / `adm0_a3`(주) 값으로
-   필터링한 뒤 `data/`의 두 파일을 덮어쓰고
-2. `map.js`의 `COUNTRY_COLORS`에 해당 ISO 3166-1 alpha-3 코드와 색을 추가하면 됩니다.
+선이 베이스맵과 어긋나 보이는 문제는 대부분 **해안선**에서 생깁니다.
+Natural Earth는 1:10m 축척으로 일반화된 데이터라 해안선이 OSM 기반 베이스맵과
+수 km씩 차이가 나기 때문입니다. 그래서 두 파일의 출처를 나눴습니다:
+
+- **국경선**은 [@geo-maps/countries-land](https://github.com/simonepri/geo-maps)
+  (OSM에서 생성 후 OSM 해안선으로 클리핑됨)를 씁니다. 베이스맵과 같은
+  혈통이라 해안선이 어긋나지 않습니다.
+- **주 경계**는 마땅한 OSM 계보 데이터가 없어 Natural Earth Admin-1을 쓰되,
+  각 주를 해당 국가의 OSM 폴리곤으로 잘라낸 뒤 **국경선과 겹치는 바깥
+  테두리는 제거**하고 내부 경계선만 남깁니다. 내부 경계선은 베이스맵에
+  대응하는 선이 없어 어긋날 대상 자체가 없으므로, 출처가 달라도 티가 나지
+  않습니다.
+
+내륙 호수는 `countries-land`에서 폴리곤의 구멍으로 남는데, 그대로 두면
+호수 둘레가 국경선처럼 그려지므로 스크립트에서 메웁니다.
+
+### 나라 추가/변경하기
+
+1. `scripts/build-borders.py`의 `TARGET`/`NAMES`를 수정하고
+2. 스크립트 상단 주석의 안내대로 입력 데이터를 받아 실행한 뒤
+3. `map.js`의 `COUNTRY_COLORS`에 해당 ISO 3166-1 alpha-3 코드와 색을 추가하면 됩니다.
 
 ## 다음 단계 아이디어
 
