@@ -9,11 +9,18 @@ Why two different sources:
   map draws. Natural Earth's outlines are generalized to a ~1:10m scale and
   visibly drift away from the basemap along the coast.
 * Province divisions come from Natural Earth's admin-1 set, since there is no
-  equally convenient OSM-lineage province dataset. Each province is clipped to
-  its country's OSM polygon, then the ring that coincides with the national
-  border is stripped — so only the interior divisions are written out, and
-  nothing is drawn twice. Interior divisions have no basemap counterpart to
-  disagree with, so their coarser lineage does not show.
+  equally convenient OSM-lineage province dataset. Only the edges *shared by
+  two provinces* are written out, so the outer ring never appears and nothing
+  is drawn twice. Interior divisions have no basemap counterpart to disagree
+  with, so their coarser lineage does not show.
+
+  Taking shared edges is what makes the two lineages coexist. Subtracting the
+  national border from the province rings instead does not work: Natural Earth
+  falls short of the OSM coastline by a wide margin in places (~42,000 km2 for
+  Ukraine), so the province ring runs kilometers inside the national border and
+  survives any subtraction buffer narrow enough to keep real divisions. An edge
+  shared by two provinces is interior by definition, however far the outline
+  drifts.
 
 Usage:
     pip install shapely
@@ -28,8 +35,9 @@ entries to COUNTRY_COLORS in map.js.
 import json
 from pathlib import Path
 
-from shapely.geometry import MultiPolygon, Polygon, mapping, shape
+from shapely.geometry import Polygon, mapping, shape
 from shapely.ops import linemerge, unary_union
+from shapely.strtree import STRtree
 from shapely.validation import make_valid
 
 TARGET = {"UKR", "LBN", "ISR", "YEM", "IRN"}
@@ -48,9 +56,6 @@ OUT_DIR = Path("data")
 # Drop islets below ~1 km2. They are invisible at the zooms this map uses and
 # make up a large share of the vertex count.
 MIN_AREA = 1e-4
-# ~200m. Wide enough to swallow the national border ring when subtracting it
-# from the province rings, narrow enough to keep real interior divisions.
-BORDER_EPS = 0.002
 # ~1m of precision, which is finer than the source data resolves.
 PRECISION = 5
 
@@ -95,27 +100,42 @@ def main():
     if missing:
         raise SystemExit(f"no country polygon for: {', '.join(sorted(missing))}")
 
+    # Kept unclipped: shared edges are found by exact boundary intersection, so
+    # the provinces have to stay topologically matched the way Natural Earth
+    # ships them. Clipping happens afterwards, on the extracted lines.
     provinces = {iso: [] for iso in TARGET}
     for feature in json.loads(ADMIN1.read_text())["features"]:
         iso = feature["properties"].get("adm0_a3")
-        if iso not in TARGET:
-            continue
-        clipped = clean(clean(shape(feature["geometry"])).intersection(countries[iso]))
-        if not clipped.is_empty:
-            provinces[iso].append(clipped)
+        if iso in TARGET:
+            provinces[iso].append(clean(shape(feature["geometry"])))
 
     state_features = []
     for iso, geoms in sorted(provinces.items()):
-        if not geoms:
+        if len(geoms) < 2:
             continue
-        national_ring = countries[iso].boundary.buffer(BORDER_EPS)
-        interior = unary_union([g.boundary for g in geoms]).difference(national_ring)
+        tree = STRtree(geoms)
+        shared = []
+        for i, geom in enumerate(geoms):
+            for j in tree.query(geom):
+                if j <= i:  # each pair once
+                    continue
+                touching = geom.boundary.intersection(geoms[j].boundary)
+                if touching.is_empty:
+                    continue
+                shared.extend(
+                    part
+                    for part in getattr(touching, "geoms", [touching])
+                    if part.geom_type in ("LineString", "MultiLineString")
+                )
+        if not shared:
+            continue
+        interior = linemerge(unary_union(shared)).intersection(countries[iso])
         if interior.is_empty:
             continue
         state_features.append({
             "type": "Feature",
             "properties": {"country_iso_a3": iso},
-            "geometry": mapping(linemerge(interior)),
+            "geometry": mapping(interior),
         })
 
     country_features = [
