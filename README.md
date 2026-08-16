@@ -32,7 +32,7 @@ python3 -m http.server 8000
 
 `map.js`의 `PMTILES_URL`은 현재 Protomaps 베이스맵을 미러링하는
 [Source Cooperative](https://source.coop/protomaps/openstreetmap)의
-공개 PMTiles 파일(`https://data.source.coop/protomaps/openstreetmap/tiles/v4.pmtiles`)을
+공개 PMTiles 파일(`https://data.source.coop/protomaps/openstreetmap/v4.pmtiles`)을
 가리킵니다.
 
 **CORS 주의**: Protomaps의 데모 버킷(`demo-bucket.protomaps.com`)과

@@ -4,7 +4,7 @@ import { Map, NavigationControl, Marker, Popup, addProtocol } from "./vendor/map
 // (no Access-Control-Allow-Origin), so it 404s/fails silently once deployed
 // even though it "works" when opened directly. Trying the Source
 // Cooperative mirror instead — see README for the CORS story either way.
-const PMTILES_URL = "https://data.source.coop/protomaps/openstreetmap/tiles/v4.pmtiles";
+const PMTILES_URL = "https://data.source.coop/protomaps/openstreetmap/v4.pmtiles";
 
 const protocol = new pmtiles.Protocol();
 addProtocol("pmtiles", protocol.tile);
