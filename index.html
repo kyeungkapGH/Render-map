@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Render Map</title>
 
-  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css" />
 
   <style>
     html, body {
@@ -22,7 +22,8 @@
 <body>
   <div id="map"></div>
 
-  <script src="vendor/leaflet/leaflet.js"></script>
-  <script src="map.js"></script>
+  <script src="vendor/pmtiles/pmtiles.js"></script>
+  <script src="vendor/basemaps/basemaps.js"></script>
+  <script type="module" src="map.js"></script>
 </body>
 </html>

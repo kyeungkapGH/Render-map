@@ -1,13 +1,37 @@
-const SEOUL_CITY_HALL = [37.5665, 126.9780];
+import { Map, NavigationControl, Marker, Popup, addProtocol } from "./vendor/maplibre-gl/maplibre-gl.mjs";
 
-const map = L.map("map").setView(SEOUL_CITY_HALL, 13);
+// Protomaps' public demo archive. It's rebuilt daily and meant for trying
+// things out, not for production traffic — see README for self-hosting.
+const PMTILES_URL = "https://demo-bucket.protomaps.com/v4.pmtiles";
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "&copy; OpenStreetMap contributors",
-  maxZoom: 19,
-}).addTo(map);
+const protocol = new pmtiles.Protocol();
+addProtocol("pmtiles", protocol.tile);
 
-L.marker(SEOUL_CITY_HALL)
-  .addTo(map)
-  .bindPopup("서울시청")
-  .openPopup();
+const SEOUL_CITY_HALL = [126.978, 37.5665];
+
+const map = new Map({
+  container: "map",
+  zoom: 12,
+  center: SEOUL_CITY_HALL,
+  style: {
+    version: 8,
+    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+    sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+    sources: {
+      protomaps: {
+        type: "vector",
+        url: `pmtiles://${PMTILES_URL}`,
+        attribution:
+          '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      },
+    },
+    layers: basemaps.layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" }),
+  },
+});
+
+map.addControl(new NavigationControl(), "top-right");
+
+new Marker()
+  .setLngLat(SEOUL_CITY_HALL)
+  .setPopup(new Popup().setText("서울시청"))
+  .addTo(map);
