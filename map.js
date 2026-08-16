@@ -1,4 +1,4 @@
-import { Map, NavigationControl, Marker, Popup, addProtocol } from "./vendor/maplibre-gl/maplibre-gl.mjs";
+import { Map, NavigationControl, Marker, Popup, addProtocol } from "./vendor/maplibre-gl/maplibre-gl.js";
 
 // Protomaps' public demo archive. It's rebuilt daily and meant for trying
 // things out, not for production traffic — see README for self-hosting.
