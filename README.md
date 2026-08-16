@@ -30,19 +30,30 @@ python3 -m http.server 8000
 
 ## 타일 데이터에 대해
 
-`map.js`의 `PMTILES_URL`은 Protomaps가 매일 새로 빌드해 공개하는 데모용
-전세계 PMTiles 파일(`https://demo-bucket.protomaps.com/v4.pmtiles`)을
-가리킵니다. 테스트/데모용으로만 의도된 것이라 트래픽이 많은 프로덕션에는
-적합하지 않습니다.
+`map.js`의 `PMTILES_URL`은 현재 Protomaps 베이스맵을 미러링하는
+[Source Cooperative](https://source.coop/protomaps/openstreetmap)의
+공개 PMTiles 파일(`https://data.source.coop/protomaps/openstreetmap/tiles/v4.pmtiles`)을
+가리킵니다.
 
-실제 서비스로 쓰려면 직접 PMTiles 파일을 만들어 자체 호스팅(S3, R2, GitHub
-Pages 등 Range 요청을 지원하는 정적 스토리지 어디든 가능)하는 것을
-권장합니다:
+**CORS 주의**: Protomaps의 데모 버킷(`demo-bucket.protomaps.com`)과
+source.coop 둘 다 공식적으로는 "다른 사이트에서 바로 hotlink하지 말라"고
+안내합니다 — 실제로 데모 버킷은 `Access-Control-Allow-Origin` 헤더가 없어서
+GitHub Pages처럼 다른 도메인에 배포하면 브라우저가 요청을 그냥 막아버립니다
+(Network 탭엔 `status 0`, `type unknown`으로 뜸). source.coop 쪽이 실제로
+동작하는지는 이 저장소를 배포해서 직접 확인해야 합니다(로컬 개발 샌드박스
+네트워크 정책상 이 도메인들에 접속해 직접 검증하지 못했습니다).
+
+**결국 가장 확실한 방법은 자체 호스팅**입니다. PMTiles 파일을 이 저장소
+안에(`vendor/`처럼) 넣어서 GitHub Pages로 같이 서빙하면, 같은 오리진이라
+CORS 문제 자체가 사라집니다:
 
 - [maps.protomaps.com](https://maps.protomaps.com)에서 원하는 지역만
   추출한 PMTiles를 다운로드하거나
 - [Planetiler](https://github.com/onthegomap/planetiler)로 직접 빌드한 뒤
-- `map.js`의 `PMTILES_URL`만 해당 파일 주소로 바꾸면 됩니다.
+- 저장소에 커밋하고 `map.js`의 `PMTILES_URL`을 그 파일 경로(예:
+  `./data/seoul.pmtiles`)로 바꾸면 됩니다. (GitHub 저장소 파일 하나는
+  100MB를 넘으면 안 되므로, 전세계가 아니라 필요한 지역만 추출하는 걸
+  권장합니다.)
 
 ## 배포
 

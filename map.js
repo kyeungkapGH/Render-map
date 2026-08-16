@@ -1,8 +1,10 @@
 import { Map, NavigationControl, Marker, Popup, addProtocol } from "./vendor/maplibre-gl/maplibre-gl.js";
 
-// Protomaps' public demo archive. It's rebuilt daily and meant for trying
-// things out, not for production traffic — see README for self-hosting.
-const PMTILES_URL = "https://demo-bucket.protomaps.com/v4.pmtiles";
+// demo-bucket.protomaps.com blocks cross-origin fetches from other sites
+// (no Access-Control-Allow-Origin), so it 404s/fails silently once deployed
+// even though it "works" when opened directly. Trying the Source
+// Cooperative mirror instead — see README for the CORS story either way.
+const PMTILES_URL = "https://data.source.coop/protomaps/openstreetmap/tiles/v4.pmtiles";
 
 const protocol = new pmtiles.Protocol();
 addProtocol("pmtiles", protocol.tile);
