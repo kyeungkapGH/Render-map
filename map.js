@@ -53,7 +53,15 @@ const map = new Map({
       },
     },
     layers: [
-      ...basemaps.layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" }),
+      // Drop the basemap's own generic admin boundary lines: its OSM
+      // "boundaries" source-layer has no per-country identity (just an
+      // admin_level-ish `kind_detail`), so it can't be filtered down to
+      // our 5 countries, and leaving it in produces two slightly
+      // different, uncolored/colored lines sitting almost on top of
+      // each other. Our GeoJSON overlay below is the only border drawn.
+      ...basemaps
+        .layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" })
+        .filter((layer) => layer.id !== "boundaries_country" && layer.id !== "boundaries"),
       {
         id: "state-borders-line",
         type: "line",

@@ -71,7 +71,19 @@ CORS 문제 자체가 사라집니다:
 
 `map.js`는 베이스맵 위에 `data/country-borders.geojson`(국경선, 굵은 실선)과
 `data/state-borders.geojson`(주/도 경계, 얇은 점선)을 국가별로 다른 색
-(`COUNTRY_COLORS`)으로 얹습니다. 다른 나라를 추가/변경하려면:
+(`COUNTRY_COLORS`)으로 얹습니다.
+
+이 오버레이는 Natural Earth 데이터라 베이스맵(OSM 기반)과 좌표가 완전히
+같지는 않습니다. Protomaps 베이스맵의 `boundaries` 소스레이어를 살펴보면
+경계선마다 `kind`/`kind_detail`(행정구역 등급)만 있고 어느 나라 소속인지
+식별하는 필드가 없어서, 베이스맵 데이터 자체를 국가별로 필터링해 대신
+쓸 수는 없었습니다. 그래서 절충안으로 베이스맵의 기본 국경선 레이어
+(`boundaries_country`, `boundaries`)는 스타일에서 아예 빼고, 이 GeoJSON
+오버레이만 경계선으로 그리도록 했습니다 — 서로 다른 두 선이 살짝 어긋난
+채 겹쳐 보이는 문제는 없어지지만, 이 5개국 외 지역엔 국경선이 안 그려지는
+트레이드오프가 있습니다.
+
+다른 나라를 추가/변경하려면:
 
 1. [Natural Earth Admin-0](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson)
    / [Admin-1](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson)
