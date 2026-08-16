@@ -22,6 +22,7 @@ python3 -m http.server 8000
 - `vendor/maplibre-gl/` — [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) (지도 렌더링, WebGL 기반)
 - `vendor/pmtiles/` — [PMTiles](https://docs.protomaps.com/pmtiles/) (단일 파일 벡터 타일 아카이브를 브라우저에서 직접 읽는 라이브러리)
 - `vendor/basemaps/` — [@protomaps/basemaps](https://github.com/protomaps/basemaps) (Protomaps 베이스맵 스타일 레이어 생성기)
+- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란의 국경선/주(州) 경계선. [Natural Earth](https://www.naturalearthdata.com/) 1:10m Admin-0/Admin-1 공개 데이터(퍼블릭 도메인)에서 이 5개국만 추출·정밀도를 낮춰 만들었습니다.
 
 라이브러리는 CDN 대신 `npm install`로 받아서 이 저장소 안에 직접 vendoring
 했습니다. 버전을 올리려면 `npm install maplibre-gl@latest pmtiles@latest
@@ -66,9 +67,21 @@ CORS 문제 자체가 사라집니다:
 배포되면 다음 주소에서 확인할 수 있습니다:
 `https://kyeungkapgh.github.io/Render-map/`
 
+## 국경선 / 주 경계 오버레이
+
+`map.js`는 베이스맵 위에 `data/country-borders.geojson`(국경선, 굵은 실선)과
+`data/state-borders.geojson`(주/도 경계, 얇은 점선)을 국가별로 다른 색
+(`COUNTRY_COLORS`)으로 얹습니다. 다른 나라를 추가/변경하려면:
+
+1. [Natural Earth Admin-0](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson)
+   / [Admin-1](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson)
+   GeoJSON을 받아서 원하는 나라의 `ADM0_A3`(국가) / `adm0_a3`(주) 값으로
+   필터링한 뒤 `data/`의 두 파일을 덮어쓰고
+2. `map.js`의 `COUNTRY_COLORS`에 해당 ISO 3166-1 alpha-3 코드와 색을 추가하면 됩니다.
+
 ## 다음 단계 아이디어
 
 - 원하는 지역만 담은 PMTiles를 직접 빌드해서 자체 호스팅으로 전환
 - 다크 테마(`basemaps.namedFlavor("dark")`)나 커스텀 색상 팔레트 적용
-- GeoJSON 오버레이 레이어, 클릭 인터랙션, 검색(geocoding) 추가
+- 국경선/주 경계에 hover 시 나라·주 이름 표시, 클릭 인터랙션 추가
 - 3D 건물(`fill-extrusion`) 레이어로 입체감 있는 뷰 구성

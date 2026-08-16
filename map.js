@@ -11,10 +11,27 @@ addProtocol("pmtiles", protocol.tile);
 
 const SEOUL_CITY_HALL = [126.978, 37.5665];
 
+// ISO 3166-1 alpha-3 codes, matched against the `iso_a3` /
+// `country_iso_a3` properties in data/country-borders.geojson and
+// data/state-borders.geojson (both filtered from Natural Earth's public
+// domain admin-0 / admin-1 datasets down to just these countries).
+const COUNTRY_COLORS = {
+  UKR: "#4c72b0",
+  LBN: "#dd8452",
+  ISR: "#55a868",
+  YEM: "#c44e52",
+  IRN: "#8172b3",
+};
+const countryColorMatch = ["match", ["get", "iso_a3"], ...Object.entries(COUNTRY_COLORS).flat(), "#999999"];
+const stateColorMatch = ["match", ["get", "country_iso_a3"], ...Object.entries(COUNTRY_COLORS).flat(), "#999999"];
+
 const map = new Map({
   container: "map",
-  zoom: 12,
-  center: SEOUL_CITY_HALL,
+  bounds: [
+    [20, 10],
+    [65, 55],
+  ],
+  fitBoundsOptions: { padding: 24 },
   style: {
     version: 8,
     glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
@@ -26,8 +43,38 @@ const map = new Map({
         attribution:
           '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
       },
+      "country-borders": {
+        type: "geojson",
+        data: "./data/country-borders.geojson",
+      },
+      "state-borders": {
+        type: "geojson",
+        data: "./data/state-borders.geojson",
+      },
     },
-    layers: basemaps.layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" }),
+    layers: [
+      ...basemaps.layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" }),
+      {
+        id: "state-borders-line",
+        type: "line",
+        source: "state-borders",
+        paint: {
+          "line-color": stateColorMatch,
+          "line-width": 1,
+          "line-dasharray": [2, 2],
+          "line-opacity": 0.8,
+        },
+      },
+      {
+        id: "country-borders-line",
+        type: "line",
+        source: "country-borders",
+        paint: {
+          "line-color": countryColorMatch,
+          "line-width": 2.5,
+        },
+      },
+    ],
   },
 });
 
