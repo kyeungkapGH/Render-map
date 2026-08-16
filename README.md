@@ -19,6 +19,17 @@ Leaflet과 OpenStreetMap을 사용한 웹 지도 시각화 프로젝트입니다
 - `index.html` — 지도가 표시되는 페이지, Leaflet CDN을 불러옵니다.
 - `map.js` — 지도 초기화, 타일 레이어, 마커 등 지도 로직.
 
+## 배포
+
+`claude/project-getting-started-5dwqgf` 브랜치에 푸시하면 `.github/workflows/deploy-pages.yml`
+워크플로가 자동으로 GitHub Pages에 배포합니다.
+
+최초 1회, 저장소 **Settings → Pages → Build and deployment → Source**를
+`GitHub Actions`로 설정해야 워크플로가 실제로 페이지를 게시할 수 있습니다.
+
+배포되면 다음 주소에서 확인할 수 있습니다:
+`https://kyeungkapgh.github.io/Render-map/`
+
 ## 다음 단계 아이디어
 
 - 마커를 데이터 파일(JSON/GeoJSON)에서 읽어와 여러 지점 표시
