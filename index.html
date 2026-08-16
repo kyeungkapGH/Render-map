@@ -22,6 +22,17 @@
 <body>
   <div id="map"></div>
 
+  <script>
+    // Mobile debugging aid: append ?debug=1 to the URL to get an on-screen
+    // console (useful when there's no way to plug into desktop devtools).
+    if (new URLSearchParams(location.search).has("debug")) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/eruda";
+      script.onload = () => eruda.init();
+      document.body.appendChild(script);
+    }
+  </script>
+
   <script src="vendor/pmtiles/pmtiles.js"></script>
   <script src="vendor/basemaps/basemaps.js"></script>
   <script type="module" src="map.js"></script>
