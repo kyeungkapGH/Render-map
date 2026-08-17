@@ -23,11 +23,10 @@ Why two different sources:
   drifts.
 
 Where two selected countries are neighbours their shared border is drawn twice,
-once per country, and the source does not always agree with itself: between
-Lebanon and Israel the two outlines coincide exactly for most of their length
-but part company around the Blue Line and Shebaa Farms, leaving no-man's land
-between them in places and overlapping in others. Both lines mean the same
-border, so one copy is dropped — see dedupe_shared_borders.
+once per country, and the source does not always agree with itself: Lebanon's
+and Israel's outlines coincide exactly for most of their shared length but
+overlap over about 1 km2 near the coast. Both lines mean the same border there,
+so one copy is dropped — see dedupe_shared_borders.
 
 Usage:
     pip install shapely
@@ -45,6 +44,7 @@ from pathlib import Path
 import shapely
 from shapely.geometry import Polygon, mapping, shape
 from shapely.ops import linemerge, unary_union
+from shapely.prepared import prep
 from shapely.strtree import STRtree
 from shapely.validation import make_valid
 
@@ -111,7 +111,7 @@ def polygonal(geom):
     return [g for g in getattr(geom, "geoms", [geom]) if g.geom_type in ("Polygon", "MultiPolygon")]
 
 
-def dedupe_shared_borders(countries, earth_land):
+def dedupe_shared_borders(countries, earth_land, all_land):
     """Return one border line per country, with shared stretches drawn once.
 
     Two neighbours each carry the border between them in their own outline. Where
@@ -126,12 +126,16 @@ def dedupe_shared_borders(countries, earth_land):
     Lebanese coast and 6km near the Syrian tripoint, because a coast that merely
     passes close to the neighbour is not a duplicate of anything.
 
-    The pockets are masked to real land, which is the other half of not eating
-    coastline. Closing the gap between two countries also spans the water where
-    their coastlines converge at the border's seaward end, and that patch of sea
-    is bounded by both countries' coasts, making it indistinguishable from a
-    no-man's-land strip on geometry alone. Disputed territory is land, so the
-    mask settles it.
+    Ground that lies between the two but belongs to somebody is not a pocket, so
+    two masks are applied. Anything a third country claims is subtracted: most of
+    what separates Lebanon from Israel is Syria, and without this the whole
+    Lebanon/Syria border reads as a gap between the pair and is deleted, leaving
+    the southeast of Lebanon with no border at all. Then what is left is
+    intersected with real land: closing the gap between two countries also spans
+    the water where their coastlines converge at the border's seaward end, and
+    that patch of sea is bounded by both countries' coasts, making it
+    indistinguishable from no-man's land on geometry alone. Disputed territory is
+    land, and it is claimed by neither neighbour; the two masks say so.
 
     Which country keeps the shared stretch is decided by ISO code order. The
     lines are identical in style, so the choice is not visible; it only needs to
@@ -150,6 +154,7 @@ def dedupe_shared_borders(countries, earth_land):
             .intersection(a.buffer(DISPUTE_WIDTH))
             .intersection(b.buffer(DISPUTE_WIDTH))
             .intersection(local_land(earth_land, merged))
+            .difference(third_party_land(all_land, (first, second), merged))
         )
         disputed = unary_union(polygonal(clean(pockets)) + polygonal(a.intersection(b)))
         if disputed.is_empty:
@@ -167,8 +172,23 @@ def local_land(earth_land, around):
     multipolygon covering every landmass on earth, and a rectangle clip is the
     only operation on it that finishes quickly.
     """
-    minx, miny, maxx, maxy = around.buffer(DISPUTE_WIDTH * 4).bounds
-    return clean(shapely.clip_by_rect(earth_land, minx, miny, maxx, maxy))
+    return clean(shapely.clip_by_rect(earth_land, *neighbourhood(around).bounds))
+
+
+def third_party_land(all_land, pair, around):
+    """Territory near `around` belonging to any country outside `pair`."""
+    box = prep(neighbourhood(around))
+    claimed = [
+        clean(shape(feature["geometry"]))
+        for feature in all_land
+        if feature["properties"].get("A3") not in pair
+        and box.intersects(shape(feature["geometry"]))
+    ]
+    return clean(unary_union(claimed)) if claimed else Polygon()
+
+
+def neighbourhood(around):
+    return around.buffer(DISPUTE_WIDTH * 4).envelope
 
 
 def drop_stubs(line):
@@ -185,8 +205,9 @@ def drop_stubs(line):
 
 
 def main():
+    land_features = json.loads(COUNTRIES_LAND.read_text())["features"]
     countries = {}
-    for feature in json.loads(COUNTRIES_LAND.read_text())["features"]:
+    for feature in land_features:
         iso = feature["properties"].get("A3")
         if iso in TARGET:
             countries[iso] = fill_holes(clean(shape(feature["geometry"])))
@@ -241,7 +262,7 @@ def main():
             "properties": {"name": NAMES[iso], "iso_a3": iso},
             "geometry": mapping(linemerge(line) if line.geom_type != "LineString" else line),
         }
-        for iso, line in sorted(dedupe_shared_borders(countries, earth_land).items())
+        for iso, line in sorted(dedupe_shared_borders(countries, earth_land, land_features).items())
         if not line.is_empty
     ]
 
