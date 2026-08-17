@@ -31,7 +31,7 @@ border, so one copy is dropped — see dedupe_shared_borders.
 
 Usage:
     pip install shapely
-    npm install @geo-maps/countries-land-100m
+    npm install @geo-maps/countries-land-100m @geo-maps/earth-lands-100m
     curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson
     python3 scripts/build-borders.py
 
@@ -42,6 +42,7 @@ import json
 from itertools import combinations
 from pathlib import Path
 
+import shapely
 from shapely.geometry import Polygon, mapping, shape
 from shapely.ops import linemerge, unary_union
 from shapely.strtree import STRtree
@@ -57,6 +58,7 @@ NAMES = {
 }
 
 COUNTRIES_LAND = Path("node_modules/@geo-maps/countries-land-100m/map.geo.json")
+EARTH_LAND = Path("node_modules/@geo-maps/earth-lands-100m/map.geo.json")
 ADMIN1 = Path("ne_10m_admin_1_states_provinces.geojson")
 OUT_DIR = Path("data")
 
@@ -65,11 +67,10 @@ OUT_DIR = Path("data")
 MIN_AREA = 1e-4
 # ~1m of precision, which is finer than the source data resolves.
 PRECISION = 5
-# ~11km. Width of no-man's land between two neighbours still treated as the two
-# of them disagreeing about one border rather than as real geography. Measured
-# against the Lebanon/Israel case: raising it further stops removing duplicates
-# and only widens what counts as disputed.
-DISPUTE_WIDTH = 0.10
+# ~9km. Widest strip between two neighbours still read as the two of them
+# disagreeing about one border. Enough to clear the Lebanon/Israel case, which
+# parts by up to 5.5km; anything wider only widens what counts as disputed.
+DISPUTE_WIDTH = 0.08
 # ~2km. Open border fragments shorter than this are offcuts of the deduplication
 # rather than border anyone would miss.
 MIN_STUB = 0.02
@@ -110,20 +111,27 @@ def polygonal(geom):
     return [g for g in getattr(geom, "geoms", [geom]) if g.geom_type in ("Polygon", "MultiPolygon")]
 
 
-def dedupe_shared_borders(countries):
+def dedupe_shared_borders(countries, earth_land):
     """Return one border line per country, with shared stretches drawn once.
 
     Two neighbours each carry the border between them in their own outline. Where
     those outlines agree the strokes land on top of each other and nobody notices,
     but where the source disagrees you get two lines several kilometers apart.
 
-    The disagreement is exactly the area the two outlines disagree about: pockets
-    of no-man's land between them, plus anywhere they overlap. Both sides of such
-    a pocket are the same border, so the second country's copy is dropped. Keying
-    the removal on that area rather than on plain proximity is what keeps it
-    honest — a coastline that merely passes near the neighbour is not part of any
-    pocket and survives, whereas a proximity rule wide enough to catch a 5km
-    disagreement also erases several kilometers of Lebanese coast.
+    What gets dropped is keyed on the area the two outlines disagree about:
+    pockets of no-man's land between them, plus anywhere they overlap. Both sides
+    of such a pocket describe the same border, so the second country's copy goes.
+    Keying on that area rather than on plain proximity is what keeps this honest —
+    a proximity rule wide enough to catch a 5km disagreement also erases 8km of
+    Lebanese coast and 6km near the Syrian tripoint, because a coast that merely
+    passes close to the neighbour is not a duplicate of anything.
+
+    The pockets are masked to real land, which is the other half of not eating
+    coastline. Closing the gap between two countries also spans the water where
+    their coastlines converge at the border's seaward end, and that patch of sea
+    is bounded by both countries' coasts, making it indistinguishable from a
+    no-man's-land strip on geometry alone. Disputed territory is land, so the
+    mask settles it.
 
     Which country keeps the shared stretch is decided by ISO code order. The
     lines are identical in style, so the choice is not visible; it only needs to
@@ -141,14 +149,26 @@ def dedupe_shared_borders(countries):
             .difference(merged)
             .intersection(a.buffer(DISPUTE_WIDTH))
             .intersection(b.buffer(DISPUTE_WIDTH))
+            .intersection(local_land(earth_land, merged))
         )
-        disputed = unary_union(polygonal(pockets) + polygonal(a.intersection(b)))
+        disputed = unary_union(polygonal(clean(pockets)) + polygonal(a.intersection(b)))
         if disputed.is_empty:
             continue
         duplicate = lines[second].intersection(disputed.boundary.buffer(1e-7))
         if not duplicate.is_empty:
             lines[second] = drop_stubs(lines[second].difference(duplicate.buffer(1e-7)))
     return lines
+
+
+def local_land(earth_land, around):
+    """Land near `around`, as a rectangle clipped out of the global land mask.
+
+    clip_by_rect is used rather than a plain intersection because the mask is one
+    multipolygon covering every landmass on earth, and a rectangle clip is the
+    only operation on it that finishes quickly.
+    """
+    minx, miny, maxx, maxy = around.buffer(DISPUTE_WIDTH * 4).bounds
+    return clean(shapely.clip_by_rect(earth_land, minx, miny, maxx, maxy))
 
 
 def drop_stubs(line):
@@ -174,6 +194,8 @@ def main():
     missing = TARGET - countries.keys()
     if missing:
         raise SystemExit(f"no country polygon for: {', '.join(sorted(missing))}")
+
+    earth_land = shape(json.loads(EARTH_LAND.read_text())["geometries"][0])
 
     # Kept unclipped: shared edges are found by exact boundary intersection, so
     # the provinces have to stay topologically matched the way Natural Earth
@@ -219,7 +241,7 @@ def main():
             "properties": {"name": NAMES[iso], "iso_a3": iso},
             "geometry": mapping(linemerge(line) if line.geom_type != "LineString" else line),
         }
-        for iso, line in sorted(dedupe_shared_borders(countries).items())
+        for iso, line in sorted(dedupe_shared_borders(countries, earth_land).items())
         if not line.is_empty
     ]
 
