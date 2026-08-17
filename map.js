@@ -12,12 +12,13 @@ addProtocol("pmtiles", protocol.tile);
 const SEOUL_CITY_HALL = [126.978, 37.5665];
 
 // data/country-borders.geojson holds the national outlines (OSM-derived, so
-// they follow the same coastline the basemap draws) and
-// data/state-borders.geojson the province divisions only — the outer ring is
-// stripped since the national outline already draws it. See README for how
-// the two files are regenerated.
+// they follow the same coastline the basemap draws), data/state-borders.geojson
+// the province divisions only — the outer ring is stripped since the national
+// outline already draws it — and data/state-labels.geojson one anchor point per
+// province. See README for how the three files are regenerated.
 const BORDER_COLOR = "#000000";
 const STATE_BORDER_COLOR = "#555555";
+const LABEL_COLOR = "#1a1a1a";
 
 const map = new Map({
   container: "map",
@@ -26,6 +27,9 @@ const map = new Map({
     [64, 53],
   ],
   fitBoundsOptions: { padding: 24 },
+  // The Protomaps glyph server only carries Latin fonts, so Hangul and 州 are
+  // rasterized from a local font instead.
+  localIdeographFontFamily: "sans-serif",
   style: {
     version: 8,
     glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
@@ -45,16 +49,22 @@ const map = new Map({
         type: "geojson",
         data: "./data/state-borders.geojson",
       },
+      "state-labels": {
+        type: "geojson",
+        data: "./data/state-labels.geojson",
+      },
     },
     layers: [
-      // Drop the basemap's own generic admin boundary lines: its OSM
-      // "boundaries" source-layer has no per-country identity (just an
-      // admin_level-ish `kind_detail`), so it can't be filtered down to
-      // our 5 countries, and leaving it in draws a second, slightly
-      // different line next to each of ours. Our GeoJSON overlay below is
-      // the only border drawn.
+      // Passing no `lang` leaves the basemap's label layers out entirely, so
+      // the only place names on the map are the province labels added below.
+      //
+      // The basemap's own admin boundary lines go too: its OSM "boundaries"
+      // source-layer has no per-country identity (just an admin_level-ish
+      // `kind_detail`), so it can't be filtered down to the countries we
+      // draw, and leaving it in puts a second, slightly different line next
+      // to each of ours.
       ...basemaps
-        .layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" })
+        .layers("protomaps", basemaps.namedFlavor("light"), {})
         .filter((layer) => layer.id !== "boundaries_country" && layer.id !== "boundaries"),
       {
         id: "state-borders-line",
@@ -73,6 +83,26 @@ const map = new Map({
         paint: {
           "line-color": BORDER_COLOR,
           "line-width": 2.5,
+        },
+      },
+      {
+        id: "state-labels-text",
+        type: "symbol",
+        source: "state-labels",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": 12,
+          // Every province stays labelled at every zoom, colliding labels
+          // included: allow-overlap keeps this layer from being culled, and
+          // ignore-placement keeps it from pushing anything else out.
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": LABEL_COLOR,
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.2,
         },
       },
     ],

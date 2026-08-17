@@ -22,8 +22,8 @@ python3 -m http.server 8000
 - `vendor/maplibre-gl/` — [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) (지도 렌더링, WebGL 기반)
 - `vendor/pmtiles/` — [PMTiles](https://docs.protomaps.com/pmtiles/) (단일 파일 벡터 타일 아카이브를 브라우저에서 직접 읽는 라이브러리)
 - `vendor/basemaps/` — [@protomaps/basemaps](https://github.com/protomaps/basemaps) (Protomaps 베이스맵 스타일 레이어 생성기)
-- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란, 수단, 이라크의 국경선/주(州) 경계선.
-- `scripts/build-borders.py` — 위 두 GeoJSON을 다시 만드는 스크립트.
+- `data/country-borders.geojson`, `data/state-borders.geojson`, `data/state-labels.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란, 수단, 이라크의 국경선/주(州) 경계선과 주 이름 라벨.
+- `scripts/build-borders.py` — 위 세 GeoJSON을 다시 만드는 스크립트.
 
 라이브러리는 CDN 대신 `npm install`로 받아서 이 저장소 안에 직접 vendoring
 했습니다. 버전을 올리려면 `npm install maplibre-gl@latest pmtiles@latest
@@ -73,6 +73,28 @@ CORS 문제 자체가 사라집니다:
 `map.js`는 베이스맵 위에 `data/country-borders.geojson`(국경선, 굵은 실선)과
 `data/state-borders.geojson`(주/도 경계, 진한 회색 점선)을 얹습니다.
 색은 `map.js`의 `BORDER_COLOR`/`STATE_BORDER_COLOR`에서 바꿉니다.
+
+### 지명 라벨
+
+**베이스맵의 지명은 전부 꺼져 있습니다.** `basemaps.layers()`에 `lang`을 넘기지
+않으면 라벨 레이어가 아예 생성되지 않습니다(71개 → 57개 레이어, symbol 레이어 0개).
+그래서 지도에 나오는 지명은 대상 국가의 주 이름뿐입니다.
+
+라벨은 `data/state-labels.geojson`(주별 앵커 점 1개)에서 오고,
+`이름 + 州` 형식입니다. Natural Earth의 `name_ko`를 쓰되 이스라엘 행정구역처럼
+접미사 "구"가 붙어 있으면 州로 치환합니다("남부구" → "남부州").
+
+**줌 배율과 무관하게 항상 표시됩니다.** MapLibre는 기본적으로 겹치는 라벨을
+숨기는데, 두 옵션으로 막았습니다:
+
+- `text-allow-overlap: true` — 다른 라벨과 겹쳐도 이 라벨을 그립니다
+- `text-ignore-placement: true` — 이 라벨이 다른 라벨을 밀어내지 않습니다
+
+`minzoom`도 두지 않아 어느 배율에서든 124개 주 이름이 모두 나옵니다. 축소하면
+서로 겹쳐 읽기 어려워지는데, 의도된 동작입니다.
+
+한글과 한자는 Protomaps 글리프 서버(라틴 전용)에 없어서 `localIdeographFontFamily`로
+브라우저의 로컬 폰트를 써서 그립니다.
 
 베이스맵이 원래 그리는 국경선 레이어(`boundaries_country`, `boundaries`)는
 스타일에서 빼두었습니다. Protomaps의 `boundaries` 소스레이어에는 경계선마다

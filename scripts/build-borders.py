@@ -113,6 +113,20 @@ def polygonal(geom):
     return [g for g in getattr(geom, "geoms", [geom]) if g.geom_type in ("Polygon", "MultiPolygon")]
 
 
+def province_label(properties):
+    """Korean province name suffixed with 州.
+
+    The map labels every first-level division the same way regardless of what
+    the country calls it — ostan, oblast, muhafazah, mehoz. Natural Earth's
+    Korean names carry no suffix except Israel's districts, which end in 구;
+    that is replaced rather than stacked on.
+    """
+    name = properties.get("name_ko") or properties.get("name_en") or properties.get("name") or ""
+    if name.endswith(("주", "구")):
+        name = name[:-1]
+    return f"{name}州"
+
+
 def dedupe_shared_borders(countries, earth_land, all_land):
     """Return one border line per country, with shared stretches drawn once.
 
@@ -224,10 +238,23 @@ def main():
     # the provinces have to stay topologically matched the way Natural Earth
     # ships them. Clipping happens afterwards, on the extracted lines.
     provinces = {iso: [] for iso in TARGET}
+    label_features = []
     for feature in json.loads(ADMIN1.read_text())["features"]:
         iso = feature["properties"].get("adm0_a3")
-        if iso in TARGET:
-            provinces[iso].append(clean(shape(feature["geometry"])))
+        if iso not in TARGET:
+            continue
+        geom = clean(shape(feature["geometry"]))
+        provinces[iso].append(geom)
+        # Anchor the label inside the country, not just inside the Natural Earth
+        # province: its coastal edges can sit out at sea.
+        inside = clean(geom.intersection(countries[iso]))
+        if inside.is_empty:
+            continue
+        label_features.append({
+            "type": "Feature",
+            "properties": {"name": province_label(feature["properties"]), "country_iso_a3": iso},
+            "geometry": mapping(inside.representative_point()),
+        })
 
     state_features = []
     for iso, geoms in sorted(provinces.items()):
@@ -268,12 +295,15 @@ def main():
         if not line.is_empty
     ]
 
-    for feature in country_features + state_features:
+    label_features.sort(key=lambda f: (f["properties"]["country_iso_a3"], f["properties"]["name"]))
+
+    for feature in country_features + state_features + label_features:
         feature["geometry"]["coordinates"] = round_coords(feature["geometry"]["coordinates"])
 
     for name, features in (
         ("country-borders.geojson", country_features),
         ("state-borders.geojson", state_features),
+        ("state-labels.geojson", label_features),
     ):
         path = OUT_DIR / name
         path.write_text(
