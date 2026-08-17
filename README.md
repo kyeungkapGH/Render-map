@@ -22,7 +22,7 @@ python3 -m http.server 8000
 - `vendor/maplibre-gl/` — [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/) (지도 렌더링, WebGL 기반)
 - `vendor/pmtiles/` — [PMTiles](https://docs.protomaps.com/pmtiles/) (단일 파일 벡터 타일 아카이브를 브라우저에서 직접 읽는 라이브러리)
 - `vendor/basemaps/` — [@protomaps/basemaps](https://github.com/protomaps/basemaps) (Protomaps 베이스맵 스타일 레이어 생성기)
-- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란의 국경선/주(州) 경계선.
+- `data/country-borders.geojson`, `data/state-borders.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란, 수단, 이라크의 국경선/주(州) 경계선.
 - `scripts/build-borders.py` — 위 두 GeoJSON을 다시 만드는 스크립트.
 
 라이브러리는 CDN 대신 `npm install`로 받아서 이 저장소 안에 직접 vendoring
@@ -77,8 +77,8 @@ CORS 문제 자체가 사라집니다:
 베이스맵이 원래 그리는 국경선 레이어(`boundaries_country`, `boundaries`)는
 스타일에서 빼두었습니다. Protomaps의 `boundaries` 소스레이어에는 경계선마다
 행정구역 등급(`kind`/`kind_detail`)만 있고 어느 나라 소속인지 식별하는
-필드가 없어서 이 5개국만 골라 강조할 수가 없기 때문입니다. 그 대신 이
-GeoJSON 오버레이가 유일한 경계선이 되고, 5개국 외 지역엔 국경선이 그려지지
+필드가 없어서 대상 국가만 골라 강조할 수가 없기 때문입니다. 그 대신 이
+GeoJSON 오버레이가 유일한 경계선이 되고, 대상 외 지역엔 국경선이 그려지지
 않는 트레이드오프가 있습니다.
 
 ### 왜 데이터 출처가 두 개인가
@@ -143,7 +143,22 @@ Natural Earth는 1:10m 축척으로 일반화된 데이터라 해안선이 OSM �
 ### 나라 추가/변경하기
 
 1. `scripts/build-borders.py`의 `TARGET`/`NAMES`를 수정하고
-2. 스크립트 상단 주석의 안내대로 입력 데이터를 받아 실행하면 됩니다.
+2. 스크립트 상단 주석의 안내대로 입력 데이터를 받아 실행한 뒤
+3. `map.js`의 `bounds`를 새 범위에 맞게 조정하면 됩니다.
+
+주의할 점:
+
+- 국경선 데이터가 없으면 스크립트가 실패하지만, **주 경계는 조용히 빠집니다**
+  (Natural Earth의 `adm0_a3` 코드가 안 맞거나 주가 1개 이하인 경우).
+  결과 파일에 해당 나라가 들어갔는지 확인하세요.
+- 임계값(`MIN_AREA`, `DISPUTE_WIDTH`, `MIN_STUB`)이 도(degree) 단위라
+  고위도로 갈수록 경도 방향 거리가 줄어듭니다. 60°N에서 `0.08°`는 남북
+  9km지만 동서로는 4.4km입니다.
+- `MIN_AREA`가 1 km² 미만 섬을 버립니다. 작은 섬으로 이뤄진 나라는 값을
+  낮춰야 합니다.
+- 새로 인접 쌍이 생기면 결과를 한 번 확인하세요. 나란히 달리는 두 선이
+  전부 중복은 아닙니다 — 하구 양안의 서로 다른 해안선이거나, 제3국을 사이에
+  둔 서로 다른 국경일 수 있고, 그런 건 지우면 안 됩니다.
 
 ## 다음 단계 아이디어
 

@@ -22,8 +22,8 @@ const STATE_BORDER_COLOR = "#555555";
 const map = new Map({
   container: "map",
   bounds: [
-    [20, 10],
-    [65, 55],
+    [21, 8],
+    [64, 53],
   ],
   fitBoundsOptions: { padding: 24 },
   style: {

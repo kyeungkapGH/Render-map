@@ -48,13 +48,15 @@ from shapely.prepared import prep
 from shapely.strtree import STRtree
 from shapely.validation import make_valid
 
-TARGET = {"UKR", "LBN", "ISR", "YEM", "IRN"}
+TARGET = {"UKR", "LBN", "ISR", "YEM", "IRN", "SDN", "IRQ"}
 NAMES = {
     "UKR": "Ukraine",
     "LBN": "Lebanon",
     "ISR": "Israel",
     "YEM": "Yemen",
     "IRN": "Iran",
+    "SDN": "Sudan",
+    "IRQ": "Iraq",
 }
 
 COUNTRIES_LAND = Path("node_modules/@geo-maps/countries-land-100m/map.geo.json")
