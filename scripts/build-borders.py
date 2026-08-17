@@ -22,17 +22,24 @@ Why two different sources:
   shared by two provinces is interior by definition, however far the outline
   drifts.
 
+Where two selected countries are neighbours their shared border is drawn twice,
+once per country, and the source does not always agree with itself: between
+Lebanon and Israel the two outlines coincide exactly for most of their length
+but part company around the Blue Line and Shebaa Farms, leaving no-man's land
+between them in places and overlapping in others. Both lines mean the same
+border, so one copy is dropped — see dedupe_shared_borders.
+
 Usage:
     pip install shapely
     npm install @geo-maps/countries-land-100m
     curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson
     python3 scripts/build-borders.py
 
-To change which countries are drawn, edit TARGET/NAMES below and add matching
-entries to COUNTRY_COLORS in map.js.
+To change which countries are drawn, edit TARGET/NAMES below.
 """
 
 import json
+from itertools import combinations
 from pathlib import Path
 
 from shapely.geometry import Polygon, mapping, shape
@@ -58,6 +65,14 @@ OUT_DIR = Path("data")
 MIN_AREA = 1e-4
 # ~1m of precision, which is finer than the source data resolves.
 PRECISION = 5
+# ~11km. Width of no-man's land between two neighbours still treated as the two
+# of them disagreeing about one border rather than as real geography. Measured
+# against the Lebanon/Israel case: raising it further stops removing duplicates
+# and only widens what counts as disputed.
+DISPUTE_WIDTH = 0.10
+# ~2km. Open border fragments shorter than this are offcuts of the deduplication
+# rather than border anyone would miss.
+MIN_STUB = 0.02
 
 
 def clean(geom):
@@ -87,6 +102,66 @@ def round_coords(obj):
     if isinstance(obj, (list, tuple)):
         return [round_coords(x) for x in obj]
     return obj
+
+
+def polygonal(geom):
+    if geom.is_empty:
+        return []
+    return [g for g in getattr(geom, "geoms", [geom]) if g.geom_type in ("Polygon", "MultiPolygon")]
+
+
+def dedupe_shared_borders(countries):
+    """Return one border line per country, with shared stretches drawn once.
+
+    Two neighbours each carry the border between them in their own outline. Where
+    those outlines agree the strokes land on top of each other and nobody notices,
+    but where the source disagrees you get two lines several kilometers apart.
+
+    The disagreement is exactly the area the two outlines disagree about: pockets
+    of no-man's land between them, plus anywhere they overlap. Both sides of such
+    a pocket are the same border, so the second country's copy is dropped. Keying
+    the removal on that area rather than on plain proximity is what keeps it
+    honest — a coastline that merely passes near the neighbour is not part of any
+    pocket and survives, whereas a proximity rule wide enough to catch a 5km
+    disagreement also erases several kilometers of Lebanese coast.
+
+    Which country keeps the shared stretch is decided by ISO code order. The
+    lines are identical in style, so the choice is not visible; it only needs to
+    be deterministic.
+    """
+    lines = {iso: geom.boundary for iso, geom in countries.items()}
+    for first, second in combinations(sorted(countries), 2):
+        a, b = countries[first], countries[second]
+        if a.distance(b) > DISPUTE_WIDTH:
+            continue
+        merged = unary_union([a, b])
+        pockets = (
+            merged.buffer(DISPUTE_WIDTH)
+            .buffer(-DISPUTE_WIDTH)
+            .difference(merged)
+            .intersection(a.buffer(DISPUTE_WIDTH))
+            .intersection(b.buffer(DISPUTE_WIDTH))
+        )
+        disputed = unary_union(polygonal(pockets) + polygonal(a.intersection(b)))
+        if disputed.is_empty:
+            continue
+        duplicate = lines[second].intersection(disputed.boundary.buffer(1e-7))
+        if not duplicate.is_empty:
+            lines[second] = drop_stubs(lines[second].difference(duplicate.buffer(1e-7)))
+    return lines
+
+
+def drop_stubs(line):
+    """Discard the short open fragments left behind when a stretch is removed.
+
+    Closed rings are kept whatever their length: those are islands, not offcuts.
+    """
+    parts = [
+        part
+        for part in getattr(line, "geoms", [line])
+        if part.is_closed or part.length > MIN_STUB
+    ]
+    return unary_union(parts)
 
 
 def main():
@@ -142,9 +217,10 @@ def main():
         {
             "type": "Feature",
             "properties": {"name": NAMES[iso], "iso_a3": iso},
-            "geometry": mapping(geom),
+            "geometry": mapping(linemerge(line) if line.geom_type != "LineString" else line),
         }
-        for iso, geom in sorted(countries.items())
+        for iso, line in sorted(dedupe_shared_borders(countries).items())
+        if not line.is_empty
     ]
 
     for feature in country_features + state_features:
