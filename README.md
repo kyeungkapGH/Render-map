@@ -23,7 +23,9 @@ python3 -m http.server 8000
 - `vendor/pmtiles/` — [PMTiles](https://docs.protomaps.com/pmtiles/) (단일 파일 벡터 타일 아카이브를 브라우저에서 직접 읽는 라이브러리)
 - `vendor/basemaps/` — [@protomaps/basemaps](https://github.com/protomaps/basemaps) (Protomaps 베이스맵 스타일 레이어 생성기)
 - `data/country-borders.geojson`, `data/state-borders.geojson`, `data/state-labels.geojson` — 우크라이나, 레바논, 이스라엘, 예멘, 이란, 수단, 이라크의 국경선/주(州) 경계선과 주 이름 라벨.
+- `data/occupied-ukraine.geojson` — 우크라이나 내 러시아 점령지 (일자별 평가 중 최신본).
 - `scripts/build-borders.py` — 위 세 GeoJSON을 다시 만드는 스크립트.
+- `scripts/fetch-occupied.py` — 점령지 GeoJSON을 갱신하는 스크립트.
 
 라이브러리는 CDN 대신 `npm install`로 받아서 이 저장소 안에 직접 vendoring
 했습니다. 버전을 올리려면 `npm install maplibre-gl@latest pmtiles@latest
@@ -161,6 +163,37 @@ Natural Earth는 1:10m 축척으로 일반화된 데이터라 해안선이 OSM �
 
 어느 쪽 사본을 남길지는 ISO 코드 순으로 정하는데, 두 선의 스타일이 같아
 결과에 차이가 없고 재현성만 있으면 되기 때문입니다.
+
+## 점령지 표시
+
+`data/occupied-ukraine.geojson`을 붉은 음영(`OCCUPIED_COLOR`)으로 얹습니다.
+국경선·라벨 아래에 깔아서 선과 글자를 가리지 않습니다.
+
+출처는 [DeepStateUA](https://deepstatemap.live)의 일일 평가이며,
+[cyterat/deepstate-map-data](https://github.com/cyterat/deepstate-map-data)가
+GitHub에 GeoJSON으로 미러링한 것을 씁니다. 갱신은:
+
+```bash
+python3 scripts/fetch-occupied.py
+```
+
+**이 데이터는 측량이 아니라 평가입니다.** 국경선에 들인 정밀도와는 성격이
+다릅니다 — ISW 등 다른 추적 기관은 선을 다르게 그리고, 모두 공개 출처로부터
+통제 상황을 추정한 것입니다. 그래서 단색 국경선과 섞이지 않게 별도 색을 썼고,
+파일에 `date` 속성을 남겨뒀습니다. 날짜도 데이터의 일부로 보셔야 합니다.
+
+**재배포 조건은 확인이 필요합니다.** 미러 저장소는 GPL-3.0이지만 이는 코드
+라이선스이고, 원 데이터인 DeepStateUA의 이용 조건은 별개입니다. 이 저장소는
+공개이므로 데이터를 커밋해 재배포하는 셈이니, 원 출처의 약관을 확인해 보시길
+권합니다. 커밋하지 않고 브라우저에서 직접 받아오는 것도 가능합니다 —
+`raw.githubusercontent.com`이 `access-control-allow-origin: *`를 보내므로
+CORS 문제는 없습니다.
+
+**레바논은 넣지 못했습니다.** 2026년 4월 이스라엘군이 남레바논 완충지대
+지도(약 602 km²)를 발표했다는 보도는 있으나, 내려받을 수 있는 폴리곤
+데이터셋을 찾지 못했습니다. HDX에 있는 것은 ACLED/UCDP 사건 점 데이터와
+IOM DTM 실향민 데이터로, 면(面) 형태가 아닙니다. 보도 지도를 눈대중으로
+따라 그리는 건 출처 없는 선을 사실처럼 표시하는 셈이라 하지 않았습니다.
 
 ### 나라 추가/변경하기
 

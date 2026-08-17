@@ -19,6 +19,10 @@ const SEOUL_CITY_HALL = [126.978, 37.5665];
 const BORDER_COLOR = "#000000";
 const STATE_BORDER_COLOR = "#555555";
 const LABEL_COLOR = "#1a1a1a";
+// data/occupied-ukraine.geojson is an assessment rather than a survey — see
+// scripts/fetch-occupied.py — so it gets its own colour instead of joining the
+// monochrome the borders are drawn in.
+const OCCUPIED_COLOR = "#c0392b";
 
 const map = new Map({
   container: "map",
@@ -53,6 +57,11 @@ const map = new Map({
         type: "geojson",
         data: "./data/state-labels.geojson",
       },
+      "occupied-ukraine": {
+        type: "geojson",
+        data: "./data/occupied-ukraine.geojson",
+        attribution: "Occupied territory: DeepStateUA",
+      },
     },
     layers: [
       // Passing no `lang` leaves the basemap's label layers out entirely, so
@@ -66,6 +75,25 @@ const map = new Map({
       ...basemaps
         .layers("protomaps", basemaps.namedFlavor("light"), {})
         .filter((layer) => layer.id !== "boundaries_country" && layer.id !== "boundaries"),
+      // Under the borders and labels, so neither is obscured by the tint.
+      {
+        id: "occupied-ukraine-fill",
+        type: "fill",
+        source: "occupied-ukraine",
+        paint: {
+          "fill-color": OCCUPIED_COLOR,
+          "fill-opacity": 0.25,
+        },
+      },
+      {
+        id: "occupied-ukraine-line",
+        type: "line",
+        source: "occupied-ukraine",
+        paint: {
+          "line-color": OCCUPIED_COLOR,
+          "line-width": 1.5,
+        },
+      },
       {
         id: "state-borders-line",
         type: "line",
