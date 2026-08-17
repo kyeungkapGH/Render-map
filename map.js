@@ -11,21 +11,13 @@ addProtocol("pmtiles", protocol.tile);
 
 const SEOUL_CITY_HALL = [126.978, 37.5665];
 
-// ISO 3166-1 alpha-3 codes, matched against the `iso_a3` /
-// `country_iso_a3` properties in data/country-borders.geojson (national
-// outlines, OSM-derived so they follow the same coastline the basemap
-// draws) and data/state-borders.geojson (province divisions only — the
-// outer ring is stripped since the national outline already draws it).
-// See README for how the two files are regenerated.
-const COUNTRY_COLORS = {
-  UKR: "#4c72b0",
-  LBN: "#dd8452",
-  ISR: "#55a868",
-  YEM: "#c44e52",
-  IRN: "#8172b3",
-};
-const countryColorMatch = ["match", ["get", "iso_a3"], ...Object.entries(COUNTRY_COLORS).flat(), "#999999"];
-const stateColorMatch = ["match", ["get", "country_iso_a3"], ...Object.entries(COUNTRY_COLORS).flat(), "#999999"];
+// data/country-borders.geojson holds the national outlines (OSM-derived, so
+// they follow the same coastline the basemap draws) and
+// data/state-borders.geojson the province divisions only — the outer ring is
+// stripped since the national outline already draws it. See README for how
+// the two files are regenerated.
+const BORDER_COLOR = "#000000";
+const STATE_BORDER_COLOR = "#555555";
 
 const map = new Map({
   container: "map",
@@ -58,9 +50,9 @@ const map = new Map({
       // Drop the basemap's own generic admin boundary lines: its OSM
       // "boundaries" source-layer has no per-country identity (just an
       // admin_level-ish `kind_detail`), so it can't be filtered down to
-      // our 5 countries, and leaving it in produces two slightly
-      // different, uncolored/colored lines sitting almost on top of
-      // each other. Our GeoJSON overlay below is the only border drawn.
+      // our 5 countries, and leaving it in draws a second, slightly
+      // different line next to each of ours. Our GeoJSON overlay below is
+      // the only border drawn.
       ...basemaps
         .layers("protomaps", basemaps.namedFlavor("light"), { lang: "ko" })
         .filter((layer) => layer.id !== "boundaries_country" && layer.id !== "boundaries"),
@@ -69,10 +61,9 @@ const map = new Map({
         type: "line",
         source: "state-borders",
         paint: {
-          "line-color": stateColorMatch,
+          "line-color": STATE_BORDER_COLOR,
           "line-width": 1,
           "line-dasharray": [2, 2],
-          "line-opacity": 0.8,
         },
       },
       {
@@ -80,7 +71,7 @@ const map = new Map({
         type: "line",
         source: "country-borders",
         paint: {
-          "line-color": countryColorMatch,
+          "line-color": BORDER_COLOR,
           "line-width": 2.5,
         },
       },

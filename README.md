@@ -71,8 +71,8 @@ CORS 문제 자체가 사라집니다:
 ## 국경선 / 주 경계 오버레이
 
 `map.js`는 베이스맵 위에 `data/country-borders.geojson`(국경선, 굵은 실선)과
-`data/state-borders.geojson`(주/도 경계, 얇은 점선)을 국가별로 다른 색
-(`COUNTRY_COLORS`)으로 얹습니다.
+`data/state-borders.geojson`(주/도 경계, 진한 회색 점선)을 얹습니다.
+색은 `map.js`의 `BORDER_COLOR`/`STATE_BORDER_COLOR`에서 바꿉니다.
 
 베이스맵이 원래 그리는 국경선 레이어(`boundaries_country`, `boundaries`)는
 스타일에서 빼두었습니다. Protomaps의 `boundaries` 소스레이어에는 경계선마다
@@ -108,8 +108,7 @@ Natural Earth는 1:10m 축척으로 일반화된 데이터라 해안선이 OSM �
 ### 나라 추가/변경하기
 
 1. `scripts/build-borders.py`의 `TARGET`/`NAMES`를 수정하고
-2. 스크립트 상단 주석의 안내대로 입력 데이터를 받아 실행한 뒤
-3. `map.js`의 `COUNTRY_COLORS`에 해당 ISO 3166-1 alpha-3 코드와 색을 추가하면 됩니다.
+2. 스크립트 상단 주석의 안내대로 입력 데이터를 받아 실행하면 됩니다.
 
 ## 다음 단계 아이디어
 
